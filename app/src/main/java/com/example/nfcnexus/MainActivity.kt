@@ -46,6 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import android.content.ComponentName
+import android.nfc.cardemulation.CardEmulation
+import com.example.nfcnexus.hce.NfcNexusApduService
 import com.example.nfcnexus.nfc.NfcReader
 import com.example.nfcnexus.nfc.NfcSessionMode
 import com.example.nfcnexus.theme.DarkBackground
@@ -145,10 +148,24 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun updateReaderMode() {
-        if (currentAppTab == AppTab.EMULATE) {
-            app.nfcManager.disableReaderMode(this)
+        val nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        val componentName = ComponentName(this, NfcNexusApduService::class.java)
+
+        if (nfcAdapter != null) {
+            val cardEmulation = CardEmulation.getInstance(nfcAdapter)
+            if (currentAppTab == AppTab.EMULATE) {
+                app.nfcManager.disableReaderMode(this)
+                cardEmulation.setPreferredService(this, componentName)
+            } else {
+                cardEmulation.unsetPreferredService(this)
+                app.nfcManager.enableReaderMode(this)
+            }
         } else {
-            app.nfcManager.enableReaderMode(this)
+            if (currentAppTab == AppTab.EMULATE) {
+                app.nfcManager.disableReaderMode(this)
+            } else {
+                app.nfcManager.enableReaderMode(this)
+            }
         }
     }
 
@@ -160,6 +177,12 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         app.nfcManager.disableReaderMode(this)
+
+        val nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+        if (nfcAdapter != null) {
+            val cardEmulation = CardEmulation.getInstance(nfcAdapter)
+            cardEmulation.unsetPreferredService(this)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
