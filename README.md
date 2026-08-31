@@ -3,7 +3,7 @@
 NFC Nexus is a modern, production-grade Android NFC utility application built with Kotlin and Jetpack Compose. It provides comprehensive tools for reading, writing, managing, and emulating NFC tags. 
 
 <p align="center">
-  <img src="app/src/main/res/drawable-xxxhdpi/ic_launcher_custom.jpg" width="200"/>
+  <img src="app/src/main/res/drawable-xxxhdpi/ic_launcher_clean.jpg" width="200"/>
 </p>
 
 ## 🌟 Features
