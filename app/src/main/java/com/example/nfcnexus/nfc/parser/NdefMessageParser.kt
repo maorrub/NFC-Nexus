@@ -17,7 +17,7 @@ object NdefMessageParser {
         val tnf = record.tnf
         val type = record.type ?: byteArrayOf()
         val payload = record.payload ?: byteArrayOf()
-        val rawHex = payload.joinToString("") { "%02X".format(it) }
+        val rawHex = payload.joinToString("") { "%02X".format(it.toInt() and 0xFF) }
 
         return when (tnf) {
             NdefRecord.TNF_WELL_KNOWN -> {
@@ -35,13 +35,13 @@ object NdefMessageParser {
                             val innerParsed = parse(innerMsg)
                             innerParsed.firstOrNull { it is ParsedRecord.Uri }
                                 ?: innerParsed.firstOrNull()
-                                ?: ParsedRecord.Unknown("TNF_WELL_KNOWN (Smart Poster)", type.joinToString(""){ "%02X".format(it) }, rawHex, rawHex)
+                                ?: ParsedRecord.Unknown("TNF_WELL_KNOWN (Smart Poster)", type.joinToString(""){ "%02X".format(it.toInt() and 0xFF) }, rawHex, rawHex)
                         } catch (e: Exception) {
-                            ParsedRecord.Unknown("TNF_WELL_KNOWN (Smart Poster)", type.joinToString(""){ "%02X".format(it) }, rawHex, rawHex)
+                            ParsedRecord.Unknown("TNF_WELL_KNOWN (Smart Poster)", type.joinToString(""){ "%02X".format(it.toInt() and 0xFF) }, rawHex, rawHex)
                         }
                     }
                     else -> {
-                        ParsedRecord.Unknown("TNF_WELL_KNOWN", type.joinToString(""){ "%02X".format(it) }, rawHex, rawHex)
+                        ParsedRecord.Unknown("TNF_WELL_KNOWN", type.joinToString(""){ "%02X".format(it.toInt() and 0xFF) }, rawHex, rawHex)
                     }
                 }
             }
@@ -85,7 +85,7 @@ object NdefMessageParser {
                     val pkgName = String(payload, StandardCharsets.UTF_8)
                     ParsedRecord.Aar(pkgName, rawHex)
                 } else {
-                    ParsedRecord.Unknown("TNF_EXTERNAL ($extType)", type.joinToString(""){ "%02X".format(it) }, rawHex, rawHex)
+                    ParsedRecord.Unknown("TNF_EXTERNAL ($extType)", type.joinToString(""){ "%02X".format(it.toInt() and 0xFF) }, rawHex, rawHex)
                 }
             }
 
@@ -99,7 +99,7 @@ object NdefMessageParser {
                     NdefRecord.TNF_UNCHANGED -> "TNF_UNCHANGED"
                     else -> "TNF_$tnf"
                 }
-                ParsedRecord.Unknown(tnfName, type.joinToString(""){ "%02X".format(it) }, rawHex, rawHex)
+                ParsedRecord.Unknown(tnfName, type.joinToString(""){ "%02X".format(it.toInt() and 0xFF) }, rawHex, rawHex)
             }
         }
     }

@@ -47,7 +47,7 @@ object UriRecordParser {
 
     fun parse(record: NdefRecord): ParsedRecord.Uri {
         val payload = record.payload ?: byteArrayOf()
-        val rawHex = payload.joinToString("") { "%02X".format(it) }
+        val rawHex = payload.joinToString("") { "%02X".format(it.toInt() and 0xFF) }
 
         if (payload.isEmpty()) {
             return ParsedRecord.Uri(uri = "", rawBytesHex = rawHex)

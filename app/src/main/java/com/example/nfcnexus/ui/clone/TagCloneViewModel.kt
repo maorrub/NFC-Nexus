@@ -145,12 +145,17 @@ class TagCloneViewModel : ViewModel() {
     }
 
     private fun hexStringToByteArray(s: String): ByteArray {
-        val clean = s.replace(":", "").replace(" ", "").replace("\n", "")
+        val clean = s.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
         val len = clean.length
-        val data = ByteArray(len / 2)
+        if (len < 2) return ByteArray(0)
+        val safeLen = if (len % 2 != 0) len - 1 else len
+        val data = ByteArray(safeLen / 2)
         var i = 0
-        while (i < len) {
-            data[i / 2] = ((Character.digit(clean[i], 16) shl 4) + Character.digit(clean[i + 1], 16)).toByte()
+        while (i < safeLen) {
+            val high = Character.digit(clean[i], 16)
+            val low = Character.digit(clean[i + 1], 16)
+            if (high == -1 || low == -1) break
+            data[i / 2] = ((high shl 4) or low).toByte()
             i += 2
         }
         return data

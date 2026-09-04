@@ -8,7 +8,7 @@ object VCardParser {
 
     fun parse(record: NdefRecord): ParsedRecord.VCard {
         val payload = record.payload ?: byteArrayOf()
-        val rawHex = payload.joinToString("") { "%02X".format(it) }
+        val rawHex = payload.joinToString("") { "%02X".format(it.toInt() and 0xFF) }
         val rawVCard = String(payload, StandardCharsets.UTF_8)
 
         var fn = ""

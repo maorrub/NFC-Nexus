@@ -16,7 +16,7 @@ object WifiRecordParser {
 
     fun parse(record: NdefRecord): ParsedRecord.Wifi {
         val payload = record.payload ?: byteArrayOf()
-        val rawHex = payload.joinToString("") { "%02X".format(it) }
+        val rawHex = payload.joinToString("") { "%02X".format(it.toInt() and 0xFF) }
 
         var ssid = ""
         var authType = "WPA2-Personal"
@@ -72,7 +72,7 @@ object WifiRecordParser {
                         networkKey = String(valueBytes, StandardCharsets.UTF_8)
                     }
                     ATTR_MAC_ADDRESS -> {
-                        macAddress = valueBytes.joinToString(":") { "%02X".format(it) }
+                        macAddress = valueBytes.joinToString(":") { "%02X".format(it.toInt() and 0xFF) }
                     }
                 }
             }

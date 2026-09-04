@@ -145,6 +145,7 @@ class MainActivity : ComponentActivity() {
         }
 
         handleNfcIntent(intent)
+        updateReaderMode()
     }
 
     private fun updateReaderMode() {
@@ -155,6 +156,13 @@ class MainActivity : ComponentActivity() {
             val cardEmulation = CardEmulation.getInstance(nfcAdapter)
             if (currentAppTab == AppTab.EMULATE) {
                 app.nfcManager.disableReaderMode(this)
+                try {
+                    cardEmulation.registerAidsForService(
+                        componentName,
+                        CardEmulation.CATEGORY_OTHER,
+                        listOf("D2760000850101", "D2760000850100")
+                    )
+                } catch (ignored: Exception) {}
                 cardEmulation.setPreferredService(this, componentName)
             } else {
                 cardEmulation.unsetPreferredService(this)

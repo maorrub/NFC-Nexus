@@ -20,7 +20,7 @@ object NfcReader {
 
     fun readTagData(tag: Tag): NfcTagData {
         val uid = tag.id ?: byteArrayOf()
-        val uidHex = uid.joinToString(":") { "%02X".format(it) }
+        val uidHex = uid.joinToString(":") { "%02X".format(it.toInt() and 0xFF) }
         val uidDecimal = if (uid.isNotEmpty()) {
             BigInteger(1, uid).toString()
         } else {
@@ -43,13 +43,13 @@ object NfcReader {
         // 1. Read NfcA parameters if present
         NfcA.get(tag)?.let { nfcA ->
             sak = "0x%02X".format(nfcA.sak)
-            atqa = nfcA.atqa?.joinToString(" ") { "%02X".format(it) }
+            atqa = nfcA.atqa?.joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
         }
 
         // 2. Read IsoDep historical bytes if present
         IsoDep.get(tag)?.let { isoDep ->
-            historicalBytes = isoDep.historicalBytes?.joinToString(" ") { "%02X".format(it) }
-                ?: isoDep.hiLayerResponse?.joinToString(" ") { "%02X".format(it) }
+            historicalBytes = isoDep.historicalBytes?.joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
+                ?: isoDep.hiLayerResponse?.joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
         }
 
         // 3. Read NDEF if present
@@ -66,7 +66,7 @@ object NfcReader {
                 if (ndefMessage != null) {
                     val rawBytes = ndefMessage.toByteArray()
                     currentNdefSize = rawBytes.size
-                    rawPayloadHex = rawBytes.joinToString("") { "%02X".format(it) }
+                    rawPayloadHex = rawBytes.joinToString("") { "%02X".format(it.toInt() and 0xFF) }
                     records = NdefMessageParser.parse(ndefMessage)
                 }
                 val ndefType = ndef.type
@@ -131,7 +131,7 @@ object NfcReader {
                             val currentPage = page + i
                             if (currentPage >= totalPages) break
                             val pageBytes = data.copyOfRange(i * 4, (i + 1) * 4)
-                            val hex = pageBytes.joinToString(" ") { "%02X".format(it) }
+                            val hex = pageBytes.joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
                             val ascii = pageBytes.map { if (it in 32..126) it.toInt().toChar() else '.' }.joinToString("")
                             
                             val notes = when (currentPage) {
