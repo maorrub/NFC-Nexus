@@ -93,8 +93,7 @@ class ApduProtocolHandler {
     private fun handleSelectCommand(apdu: ByteArray, p1: Int, p2: Int): ApduResponse {
         // SELECT Application by Name (P1 = 0x04)
         if (p1 == 0x04) {
-            val lc = if (apdu.size > 4) apdu[4].toInt() and 0xFF else 0
-            if (lc >= NDEF_AID.size && apdu.size >= 5 + NDEF_AID.size) {
+            if (apdu.size >= 5 + NDEF_AID.size) {
                 val requestedAid = apdu.copyOfRange(5, 5 + NDEF_AID.size)
                 if (Arrays.equals(requestedAid, NDEF_AID)) {
                     isAppSelected = true
@@ -107,8 +106,7 @@ class ApduProtocolHandler {
 
         // SELECT File by ID (P1 = 0x00)
         if (p1 == 0x00) {
-            val lc = if (apdu.size > 4) apdu[4].toInt() and 0xFF else 0
-            if (lc == 2 && apdu.size >= 7) {
+            if (apdu.size >= 7) {
                 val fileId = apdu.copyOfRange(5, 7)
                 if (Arrays.equals(fileId, CC_FILE_ID)) {
                     selectedFile = SelectedFile.CC_FILE

@@ -18,9 +18,9 @@ class NfcNexusApduService : HostApduService() {
             return ApduProtocolHandler.SW_FILE_NOT_FOUND
         }
 
-        val commandHex = commandApdu.joinToString(" ") { "%02X".format(it) }
+        val commandHex = commandApdu.joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
         val response = protocolHandler.processCommandApdu(commandApdu, activeCard.ndefBytes)
-        val responseHex = response.responseBytes.joinToString(" ") { "%02X".format(it) }
+        val responseHex = response.responseBytes.joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
 
         // Log transaction to live repository feed
         EmulationRepository.logApduTransaction(
