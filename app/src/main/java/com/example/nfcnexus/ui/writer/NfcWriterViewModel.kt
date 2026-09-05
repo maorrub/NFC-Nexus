@@ -41,8 +41,9 @@ data class WriterUiState(
     val urlContent: String = "https://github.com/developer/portfolio",
     // Photo fields
     val photoMode: PhotoMode = PhotoMode.WEB_URL,
-    val photoUrl: String = "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=600&auto=format&fit=crop",
+    val photoUrl: String = "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1600&q=85",
     val photoTitle: String = "My Photo",
+    val photoFullScreenViewer: Boolean = true,
     val photoBytes: ByteArray? = null,
     val photoBase64: String? = null,
     val photoMimeType: String = "image/jpeg",
@@ -151,6 +152,21 @@ class NfcWriterViewModel(
         _uiState.update { it.copy(photoMode = mode) }
     }
 
+    fun togglePhotoFullScreenViewer(enabled: Boolean) {
+        _uiState.update { it.copy(photoFullScreenViewer = enabled) }
+    }
+
+    fun getEffectivePhotoUrl(): String {
+        val s = _uiState.value
+        val raw = s.photoUrl.trim()
+        if (raw.isEmpty()) return ""
+        return if (s.photoFullScreenViewer && !raw.startsWith("https://maorrub.github.io/NFC-Nexus/")) {
+            "https://maorrub.github.io/NFC-Nexus/?img=" + java.net.URLEncoder.encode(raw, "UTF-8")
+        } else {
+            raw
+        }
+    }
+
     fun updatePhotoUrl(url: String, title: String = _uiState.value.photoTitle) {
         _uiState.update { it.copy(photoUrl = url, photoTitle = title) }
     }
@@ -168,7 +184,7 @@ class NfcWriterViewModel(
         }
     }
 
-    fun compressAndSetGalleryImage(context: android.content.Context, uri: android.net.Uri, maxTargetBytes: Int = 3500) {
+    fun compressAndSetGalleryImage(context: android.content.Context, uri: android.net.Uri, maxTargetBytes: Int = 6500) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val inputStream = context.contentResolver.openInputStream(uri) ?: return@launch
@@ -176,18 +192,18 @@ class NfcWriterViewModel(
                 inputStream.close()
                 if (originalBitmap == null) return@launch
 
-                // Downsample to thumbnail (max dimension 120px) to fit tag budget
-                val maxDim = 120
+                // Downsample to high-res thumbnail (max dimension 360px) to fit 8KB HCE capacity
+                val maxDim = 360
                 val ratio = minOf(1.0f, maxDim.toFloat() / maxOf(originalBitmap.width, originalBitmap.height))
                 val targetW = maxOf(1, (originalBitmap.width * ratio).toInt())
                 val targetH = maxOf(1, (originalBitmap.height * ratio).toInt())
                 val scaled = android.graphics.Bitmap.createScaledBitmap(originalBitmap, targetW, targetH, true)
 
-                var quality = 80
+                var quality = 85
                 var stream = java.io.ByteArrayOutputStream()
                 scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, stream)
-                while (stream.size() > maxTargetBytes && quality > 20) {
-                    quality -= 15
+                while (stream.size() > maxTargetBytes && quality > 25) {
+                    quality -= 10
                     stream = java.io.ByteArrayOutputStream()
                     scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, stream)
                 }
@@ -305,7 +321,7 @@ class NfcWriterViewModel(
                         mimeType = s.photoMimeType
                     )
                 } else {
-                    NdefPayloadBuilder.createUriRecord(s.photoUrl)
+                    NdefPayloadBuilder.createUriRecord(getEffectivePhotoUrl())
                 }
             }
             WritePayloadType.WIFI -> NdefPayloadBuilder.createWifiRecord(s.wifiSsid, s.wifiPassword, s.wifiAuthType)
@@ -341,12 +357,13 @@ class NfcWriterViewModel(
                         rawBytesHex = s.photoBytes.joinToString("") { "%02X".format(it.toInt() and 0xFF) }
                     )
                 } else {
+                    val effectiveUrl = getEffectivePhotoUrl()
                     ParsedRecord.Image(
-                        uri = s.photoUrl,
+                        uri = effectiveUrl,
                         title = s.photoTitle,
                         mimeType = "image/jpeg",
                         base64Thumbnail = null,
-                        byteSize = s.photoUrl.length,
+                        byteSize = effectiveUrl.length,
                         rawBytesHex = ""
                     )
                 }

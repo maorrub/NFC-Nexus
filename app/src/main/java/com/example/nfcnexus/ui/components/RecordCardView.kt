@@ -60,7 +60,14 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.nfcnexus.data.model.ParsedRecord
 import com.example.nfcnexus.theme.DarkCard
 import com.example.nfcnexus.theme.DarkCardBorder
@@ -404,6 +411,38 @@ private fun ImageRecordContent(record: ParsedRecord.Image, context: Context) {
         }
     }
 
+    var showFullScreenDialog by remember { mutableStateOf(false) }
+
+    if (showFullScreenDialog && bitmap != null) {
+        Dialog(
+            onDismissRequest = { showFullScreenDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .clickable { showFullScreenDialog = false },
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.foundation.Image(
+                    bitmap = bitmap,
+                    contentDescription = record.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+                IconButton(
+                    onClick = { showFullScreenDialog = false },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                }
+            }
+        }
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!record.title.isNullOrBlank()) {
             Text(
@@ -421,7 +460,8 @@ private fun ImageRecordContent(record: ParsedRecord.Image, context: Context) {
                     .fillMaxWidth()
                     .height(200.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color.Black.copy(alpha = 0.4f)),
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable { showFullScreenDialog = true },
                 contentAlignment = Alignment.Center
             ) {
                 androidx.compose.foundation.Image(

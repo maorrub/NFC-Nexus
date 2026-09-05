@@ -59,6 +59,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -625,10 +627,52 @@ private fun PhotoFormEditor(
 
         when (state.photoMode) {
             PhotoMode.WEB_URL -> {
+                // Full-Screen Gallery Viewer Toggle
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(DarkSurface)
+                        .clickable { viewModel.togglePhotoFullScreenViewer(!state.photoFullScreenViewer) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Full-Screen Gallery Mode",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = DarkTextPrimary
+                            )
+                        )
+                        Text(
+                            text = if (state.photoFullScreenViewer)
+                                "Opens edge-to-edge covering the entire display on deep black"
+                            else
+                                "Direct raw image URL (browser default view)",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = if (state.photoFullScreenViewer) NfcCyan else DarkTextSecondary,
+                                fontSize = 11.sp
+                            )
+                        )
+                    }
+                    Switch(
+                        checked = state.photoFullScreenViewer,
+                        onCheckedChange = { viewModel.togglePhotoFullScreenViewer(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.Black,
+                            checkedTrackColor = NfcCyan,
+                            uncheckedThumbColor = DarkTextSecondary,
+                            uncheckedTrackColor = DarkCardBorder
+                        )
+                    )
+                }
+
                 OutlinedTextField(
                     value = state.photoUrl,
                     onValueChange = { viewModel.updatePhotoUrl(it, state.photoTitle) },
-                    label = { Text("Direct Photo URL (https://.../image.jpg)") },
+                    label = { Text("Photo URL (https://.../image.jpg)") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = customTextFieldColors()
                 )
@@ -641,7 +685,7 @@ private fun PhotoFormEditor(
                     colors = customTextFieldColors()
                 )
 
-                // Quick presets
+                // High-resolution presets
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -649,28 +693,39 @@ private fun PhotoFormEditor(
                     FilledTonalButton(
                         onClick = {
                             viewModel.updatePhotoUrl(
-                                "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=600",
+                                "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1600&q=85",
                                 "Artwork Photo"
                             )
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Art Sample", fontSize = 12.sp)
+                        Text("Art HD", fontSize = 12.sp)
                     }
                     FilledTonalButton(
                         onClick = {
                             viewModel.updatePhotoUrl(
-                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600",
+                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=85",
                                 "Portrait Photo"
                             )
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Portrait Sample", fontSize = 12.sp)
+                        Text("Portrait HD", fontSize = 12.sp)
+                    }
+                    FilledTonalButton(
+                        onClick = {
+                            viewModel.updatePhotoUrl(
+                                "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=85",
+                                "Nature Photo"
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Nature HD", fontSize = 12.sp)
                     }
                 }
 
-                // Universal Pop-up explanation badge
+                // Full-Screen Display explanation card
                 Card(
                     colors = CardDefaults.cardColors(containerColor = DarkSurface),
                     border = androidx.compose.foundation.BorderStroke(1.dp, NfcCyan.copy(alpha = 0.3f)),
@@ -688,7 +743,7 @@ private fun PhotoFormEditor(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Universal Tap-to-Pop: When any phone (iPhone or Android) touches this tag or emulating phone, the image immediately pops up in their default browser — no special app required.",
+                            text = "Full-Screen Cover: When any phone (iPhone or Android) touches your phone or written tag, the photo immediately covers the entire screen on pure black like viewing inside the native Gallery app. Tapping the screen toggles full cover vs aspect fit.",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = DarkTextSecondary,
                                 fontSize = 11.sp,

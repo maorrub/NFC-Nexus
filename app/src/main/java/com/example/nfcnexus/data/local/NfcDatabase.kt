@@ -81,9 +81,8 @@ abstract class NfcDatabase : RoomDatabase() {
                     tagType = "NFC Forum Type 2",
                     category = "TEMPLATE",
                     isFavorite = true,
-                    recordsJson = """[{"type":"com.example.nfcnexus.data.model.ParsedRecord.Image","uri":"https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=600","title":"Artwork Showcase","mimeType":"image/jpeg","base64Thumbnail":null,"byteSize":61,"rawBytesHex":""}]""",
+                    recordsJson = """[{"type":"com.example.nfcnexus.data.model.ParsedRecord.Image","uri":"https://maorrub.github.io/NFC-Nexus/?img=https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format%26fit=crop%26w=1600%26q=85","title":"Artwork Showcase","mimeType":"image/jpeg","base64Thumbnail":null,"byteSize":135,"rawBytesHex":""}]""",
                     techListJson = """["android.nfc.tech.Ndef","android.nfc.tech.NfcA"]""",
-                    rawNdefHex = "D1013A5504696D616765732E756E73706C6173682E636F6D2F70686F746F2D313537393738333930323631342D6133666233393237623637353F773D363030",
                     memorySize = 504
                 )
             )
