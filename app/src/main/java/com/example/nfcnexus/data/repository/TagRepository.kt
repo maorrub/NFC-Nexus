@@ -54,6 +54,8 @@ class TagRepository(private val tagDao: TagDao) {
 
     suspend fun saveTemplate(title: String, tagType: String, records: List<ParsedRecord>): Long {
         val recordsJson = json.encodeToString(records)
+        val ndefBytes = com.example.nfcnexus.nfc.builder.NdefPayloadBuilder.buildNdefMessageFromRecords(records).toByteArray()
+        val rawNdefHex = ndefBytes.joinToString("") { "%02X".format(it.toInt() and 0xFF) }
         val entity = TagEntity(
             title = title,
             tagUid = "CUSTOM_TEMPLATE",
@@ -62,6 +64,7 @@ class TagRepository(private val tagDao: TagDao) {
             timestamp = System.currentTimeMillis(),
             recordsJson = recordsJson,
             techListJson = json.encodeToString(listOf("android.nfc.tech.Ndef")),
+            rawNdefHex = rawNdefHex,
             memorySize = 1024,
             isReadOnly = false
         )

@@ -3,6 +3,7 @@ package com.example.nfcnexus.nfc.builder
 import android.net.Uri
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
+import com.example.nfcnexus.data.model.ParsedRecord
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.Locale
@@ -67,28 +68,39 @@ object NdefPayloadBuilder {
     }
 
     fun createUriRecord(uriString: String): NdefRecord {
-        var prefixCode: Byte = 0x00
-        var remainingUri = uriString
-
-        for ((prefix, code) in URI_PREFIX_ENTRIES) {
-            if (uriString.startsWith(prefix, ignoreCase = true)) {
-                prefixCode = code
-                remainingUri = uriString.substring(prefix.length)
-                break
-            }
+        val trimmed = uriString.trim()
+        val normalized = if (!trimmed.contains("://") && !trimmed.startsWith("tel:") && !trimmed.startsWith("mailto:") && !trimmed.startsWith("sms:") && !trimmed.startsWith("geo:")) {
+            "https://$trimmed"
+        } else {
+            trimmed
         }
 
-        val uriBytes = remainingUri.toByteArray(StandardCharsets.UTF_8)
-        val payload = ByteArray(1 + uriBytes.size)
-        payload[0] = prefixCode
-        System.arraycopy(uriBytes, 0, payload, 1, uriBytes.size)
+        return try {
+            NdefRecord.createUri(normalized)
+        } catch (e: Exception) {
+            var prefixCode: Byte = 0x00
+            var remainingUri = normalized
 
-        return NdefRecord(
-            NdefRecord.TNF_WELL_KNOWN,
-            NdefRecord.RTD_URI,
-            ByteArray(0),
-            payload
-        )
+            for ((prefix, code) in URI_PREFIX_ENTRIES) {
+                if (normalized.startsWith(prefix, ignoreCase = true)) {
+                    prefixCode = code
+                    remainingUri = normalized.substring(prefix.length)
+                    break
+                }
+            }
+
+            val uriBytes = remainingUri.toByteArray(StandardCharsets.UTF_8)
+            val payload = ByteArray(1 + uriBytes.size)
+            payload[0] = prefixCode
+            System.arraycopy(uriBytes, 0, payload, 1, uriBytes.size)
+
+            NdefRecord(
+                NdefRecord.TNF_WELL_KNOWN,
+                NdefRecord.RTD_URI,
+                ByteArray(0),
+                payload
+            )
+        }
     }
 
     fun createWifiRecord(
@@ -153,11 +165,83 @@ object NdefPayloadBuilder {
         return NdefRecord.createApplicationRecord(packageName)
     }
 
+    fun createImageRecord(uriString: String, rawImageBytes: ByteArray? = null, mimeType: String = "image/jpeg"): NdefRecord {
+        return if (rawImageBytes != null && rawImageBytes.isNotEmpty()) {
+            createMimeRecord(mimeType, rawImageBytes)
+        } else {
+            createUriRecord(uriString)
+        }
+    }
+
     fun buildMessage(vararg records: NdefRecord): NdefMessage {
         return NdefMessage(records)
     }
 
     fun buildMessage(records: List<NdefRecord>): NdefMessage {
         return NdefMessage(records.toTypedArray())
+    }
+
+    fun buildNdefMessageFromRecords(records: List<ParsedRecord>): NdefMessage {
+        val ndefRecords = records.mapNotNull { record ->
+            try {
+                when (record) {
+                    is ParsedRecord.Text -> createTextRecord(record.text, record.languageCode)
+                    is ParsedRecord.Uri -> createUriRecord(record.uri)
+                    is ParsedRecord.Wifi -> createWifiRecord(
+                        ssid = record.ssid,
+                        password = record.networkKey,
+                        authType = if (record.authType.contains("WPA3")) WifiTlvEncoder.AuthType.WPA3_PERSONAL else WifiTlvEncoder.AuthType.WPA2_PERSONAL
+                    )
+                    is ParsedRecord.VCard -> createVCardRecord(
+                        fullName = record.formattedName,
+                        organization = record.organization,
+                        title = record.title,
+                        phone = record.phoneNumbers.firstOrNull() ?: "",
+                        email = record.emails.firstOrNull() ?: "",
+                        url = record.urls.firstOrNull() ?: "",
+                        note = record.note,
+                        address = record.address
+                    )
+                    is ParsedRecord.Mime -> createMimeRecord(
+                        mimeType = record.mimeType,
+                        data = record.contentString?.toByteArray(StandardCharsets.UTF_8) ?: hexStringToByteArray(record.payloadHex)
+                    )
+                    is ParsedRecord.Image -> {
+                        if (!record.base64Thumbnail.isNullOrEmpty()) {
+                            val bytes = android.util.Base64.decode(record.base64Thumbnail, android.util.Base64.DEFAULT)
+                            createMimeRecord(record.mimeType, bytes)
+                        } else {
+                            createUriRecord(record.uri)
+                        }
+                    }
+                    is ParsedRecord.Aar -> createAarRecord(record.packageName)
+                    is ParsedRecord.Unknown -> createTextRecord("Unknown Record")
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        if (ndefRecords.isEmpty()) {
+            return NdefMessage(arrayOf(createUriRecord("https://github.com/developer/portfolio")))
+        }
+        return NdefMessage(ndefRecords.toTypedArray())
+    }
+
+    fun hexStringToByteArray(s: String): ByteArray {
+        val clean = s.filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+        val len = clean.length
+        if (len < 2) return ByteArray(0)
+        val safeLen = if (len % 2 != 0) len - 1 else len
+        val data = ByteArray(safeLen / 2)
+        var i = 0
+        while (i < safeLen) {
+            val high = Character.digit(clean[i], 16)
+            val low = Character.digit(clean[i + 1], 16)
+            if (high == -1 || low == -1) break
+            data[i / 2] = ((high shl 4) or low).toByte()
+            i += 2
+        }
+        return data
     }
 }

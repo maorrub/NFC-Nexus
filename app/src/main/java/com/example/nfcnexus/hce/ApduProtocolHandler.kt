@@ -83,7 +83,7 @@ class ApduProtocolHandler {
             0x00.toByte(), 0x7F.toByte(), // MLc: Max Write Length (127 bytes)
             0x04.toByte(), 0x06.toByte(), // NDEF File Control TLV: T=04, L=06
             0xE1.toByte(), 0x04.toByte(), // NDEF File ID (E1 04)
-            0x08.toByte(), 0x00.toByte(), // Max NDEF File Size (2048 bytes)
+            0x20.toByte(), 0x00.toByte(), // Max NDEF File Size (8192 bytes / 8KB)
             0x00.toByte(),               // Read Access (00 = Free access)
             0x00.toByte()                // Write Access (00 = Free access / writable)
         )

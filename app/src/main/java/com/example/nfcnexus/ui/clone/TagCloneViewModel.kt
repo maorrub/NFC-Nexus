@@ -67,12 +67,17 @@ class TagCloneViewModel : ViewModel() {
     }
 
     fun stageDirectPayload(title: String, records: List<ParsedRecord>, ndefBytes: ByteArray) {
+        val finalBytes = if (ndefBytes.isNotEmpty()) {
+            ndefBytes
+        } else {
+            NdefPayloadBuilder.buildNdefMessageFromRecords(records).toByteArray()
+        }
         _stagedTag.value = StagedCloneTag(
             title = title,
             sourceUid = "TEMPLATE",
             tagStandard = "NFC Forum Type 2/4",
             records = records,
-            rawNdefBytes = ndefBytes
+            rawNdefBytes = finalBytes
         )
     }
 
@@ -82,19 +87,24 @@ class TagCloneViewModel : ViewModel() {
 
     fun emulateStagedTag(): Boolean {
         val staged = _stagedTag.value ?: return false
+        val finalBytes = if (staged.rawNdefBytes.isNotEmpty()) {
+            staged.rawNdefBytes
+        } else {
+            NdefPayloadBuilder.buildNdefMessageFromRecords(staged.records).toByteArray()
+        }
         val firstRecord = staged.records.firstOrNull()
         if (firstRecord != null) {
             EmulationRepository.setEmulatedCardFromRecord(
                 record = firstRecord,
                 customTitle = staged.title,
-                ndefBytes = staged.rawNdefBytes
+                ndefBytes = finalBytes
             )
         } else {
             EmulationRepository.setEmulatedPayload(
                 title = staged.title,
-                subtitle = "Cloned payload (${staged.rawNdefBytes.size} bytes)",
+                subtitle = "Cloned payload (${finalBytes.size} bytes)",
                 payloadType = "Raw NDEF",
-                ndefBytes = staged.rawNdefBytes
+                ndefBytes = finalBytes
             )
         }
         EmulationRepository.setEmulationActive(true)
@@ -111,37 +121,7 @@ class TagCloneViewModel : ViewModel() {
     }
 
     private fun buildNdefMessageFromRecords(records: List<ParsedRecord>): NdefMessage {
-        val ndefRecords = records.map { record ->
-            when (record) {
-                is ParsedRecord.Text -> NdefPayloadBuilder.createTextRecord(record.text, record.languageCode)
-                is ParsedRecord.Uri -> NdefPayloadBuilder.createUriRecord(record.uri)
-                is ParsedRecord.Wifi -> NdefPayloadBuilder.createWifiRecord(
-                    ssid = record.ssid,
-                    password = record.networkKey,
-                    authType = if (record.authType.contains("WPA3")) WifiTlvEncoder.AuthType.WPA3_PERSONAL else WifiTlvEncoder.AuthType.WPA2_PERSONAL
-                )
-                is ParsedRecord.VCard -> NdefPayloadBuilder.createVCardRecord(
-                    fullName = record.formattedName,
-                    organization = record.organization,
-                    title = record.title,
-                    phone = record.phoneNumbers.firstOrNull() ?: "",
-                    email = record.emails.firstOrNull() ?: "",
-                    url = record.urls.firstOrNull() ?: "",
-                    note = record.note,
-                    address = record.address
-                )
-                is ParsedRecord.Mime -> NdefPayloadBuilder.createMimeRecord(
-                    mimeType = record.mimeType,
-                    data = record.contentString?.toByteArray() ?: hexStringToByteArray(record.payloadHex)
-                )
-                is ParsedRecord.Aar -> NdefPayloadBuilder.createAarRecord(record.packageName)
-                is ParsedRecord.Unknown -> NdefPayloadBuilder.createTextRecord("Unknown Record")
-            }
-        }
-        if (ndefRecords.isEmpty()) {
-            return NdefMessage(NdefRecord(NdefRecord.TNF_EMPTY, null, null, null))
-        }
-        return NdefMessage(ndefRecords.toTypedArray())
+        return NdefPayloadBuilder.buildNdefMessageFromRecords(records)
     }
 
     private fun hexStringToByteArray(s: String): ByteArray {

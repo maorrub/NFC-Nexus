@@ -2,7 +2,9 @@ package com.example.nfcnexus.hce
 
 import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
+import android.util.Log
 import com.example.nfcnexus.data.repository.EmulationRepository
+import com.example.nfcnexus.nfc.builder.NdefPayloadBuilder
 
 class NfcNexusApduService : HostApduService() {
 
@@ -16,7 +18,10 @@ class NfcNexusApduService : HostApduService() {
         val commandHex = commandApdu.joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
         val activeCard = EmulationRepository.currentCard.value
 
+        Log.d("NfcNexusApdu", ">>> Incoming APDU: $commandHex (Card: ${activeCard.title}, Enabled: ${activeCard.isEnabled})")
+
         if (!activeCard.isEnabled) {
+            Log.d("NfcNexusApdu", "<<< Blocked (Emulation Paused) -> 6A 82")
             EmulationRepository.logApduTransaction(
                 commandName = "BLOCKED (PAUSED)",
                 commandHex = commandHex,
@@ -28,9 +33,18 @@ class NfcNexusApduService : HostApduService() {
             return ApduProtocolHandler.SW_FILE_NOT_FOUND
         }
 
+        val effectiveNdefBytes = if (activeCard.ndefBytes.isNotEmpty()) {
+            activeCard.ndefBytes
+        } else {
+            Log.w("NfcNexusApdu", "Warning: activeCard.ndefBytes is empty! Using fallback NDEF URL payload.")
+            NdefPayloadBuilder.buildMessage(NdefPayloadBuilder.createUriRecord("https://github.com/developer/portfolio")).toByteArray()
+        }
+
         return try {
-            val response = protocolHandler.processCommandApdu(commandApdu, activeCard.ndefBytes)
+            val response = protocolHandler.processCommandApdu(commandApdu, effectiveNdefBytes)
             val responseHex = response.responseBytes.joinToString(" ") { "%02X".format(it.toInt() and 0xFF) }
+
+            Log.d("NfcNexusApdu", "<<< Response: ${response.commandName} [${response.statusCodeHex}] -> $responseHex")
 
             // If an external NFC writer updated the NDEF payload, commit to repository
             if (response.updatedNdefBytes != null) {
@@ -72,6 +86,7 @@ class NfcNexusApduService : HostApduService() {
             DEACTIVATION_DESELECTED -> "Deselected by Reader"
             else -> "Reason $reason"
         }
+        Log.d("NfcNexusApdu", "--- Session Deactivated: $reasonStr ---")
         protocolHandler.resetState()
         EmulationRepository.logApduTransaction(
             commandName = "SESSION END",

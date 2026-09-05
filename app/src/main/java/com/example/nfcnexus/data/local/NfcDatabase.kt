@@ -62,6 +62,7 @@ abstract class NfcDatabase : RoomDatabase() {
                     isFavorite = true,
                     recordsJson = """[{"type":"com.example.nfcnexus.data.model.ParsedRecord.Uri","uri":"https://github.com/developer/portfolio","title":"My Portfolio","scheme":"https://","rawBytesHex":""}]""",
                     techListJson = """["android.nfc.tech.Ndef","android.nfc.tech.NfcA"]""",
+                    rawNdefHex = "D1011F55046769746875622E636F6D2F646576656C6F7065722F706F7274666F6C696F",
                     memorySize = 504
                 ),
                 TagEntity(
@@ -73,6 +74,17 @@ abstract class NfcDatabase : RoomDatabase() {
                     recordsJson = """[{"type":"com.example.nfcnexus.data.model.ParsedRecord.VCard","formattedName":"Alex Nexus","organization":"Nexus Technologies","title":"Chief Solutions Architect","phoneNumbers":["+1-555-0199"],"emails":["alex@nexus-tech.io"],"urls":["https://nexus-tech.io"],"note":"NFC Architect & Engineer","address":"San Francisco, CA","rawVCard":"BEGIN:VCARD\nVERSION:3.0\nFN:Alex Nexus\nORG:Nexus Technologies\nTITLE:Chief Solutions Architect\nTEL:+1-555-0199\nEMAIL:alex@nexus-tech.io\nURL:https://nexus-tech.io\nNOTE:NFC Architect & Engineer\nADR:;;San Francisco;CA;;;USA\nEND:VCARD","rawBytesHex":""}]""",
                     techListJson = """["android.nfc.tech.IsoDep","android.nfc.tech.Ndef"]""",
                     memorySize = 2048
+                ),
+                TagEntity(
+                    title = "Artwork Showcase Photo",
+                    tagUid = "TEMPLATE_PHOTO",
+                    tagType = "NFC Forum Type 2",
+                    category = "TEMPLATE",
+                    isFavorite = true,
+                    recordsJson = """[{"type":"com.example.nfcnexus.data.model.ParsedRecord.Image","uri":"https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=600","title":"Artwork Showcase","mimeType":"image/jpeg","base64Thumbnail":null,"byteSize":61,"rawBytesHex":""}]""",
+                    techListJson = """["android.nfc.tech.Ndef","android.nfc.tech.NfcA"]""",
+                    rawNdefHex = "D1013A5504696D616765732E756E73706C6173682E636F6D2F70686F746F2D313537393738333930323631342D6133666233393237623637353F773D363030",
+                    memorySize = 504
                 )
             )
             dao.insertAll(templates)

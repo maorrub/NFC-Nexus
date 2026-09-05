@@ -74,6 +74,18 @@ sealed class ParsedRecord {
     }
 
     @Serializable
+    data class Image(
+        val uri: String,
+        val title: String = "Photo / Image",
+        val mimeType: String = "image/jpeg",
+        val base64Thumbnail: String? = null,
+        val byteSize: Int = 0,
+        override val rawBytesHex: String
+    ) : ParsedRecord() {
+        override val recordTypeName: String get() = "Photo / Image"
+    }
+
+    @Serializable
     data class Unknown(
         val tnfName: String,
         val typeHex: String,

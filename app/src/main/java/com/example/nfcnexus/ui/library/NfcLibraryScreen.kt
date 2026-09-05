@@ -83,6 +83,7 @@ import com.example.nfcnexus.theme.NfcAmber
 import com.example.nfcnexus.theme.NfcCyan
 import com.example.nfcnexus.theme.NfcGreen
 import com.example.nfcnexus.theme.NfcPurple
+import com.example.nfcnexus.nfc.builder.NdefPayloadBuilder
 import com.example.nfcnexus.ui.clone.TagCloneViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -226,14 +227,18 @@ fun NfcLibraryScreen(
                         onClone = {
                             val rawBytes = if (tag.rawNdefHex.isNotEmpty()) {
                                 hexStringToByteArray(tag.rawNdefHex)
-                            } else byteArrayOf()
+                            } else {
+                                NdefPayloadBuilder.buildNdefMessageFromRecords(parsedRecords).toByteArray()
+                            }
                             cloneViewModel.stageDirectPayload(tag.title, parsedRecords, rawBytes)
                             Toast.makeText(context, "Staged for cloning!", Toast.LENGTH_SHORT).show()
                         },
                         onEmulate = {
                             val rawBytes = if (tag.rawNdefHex.isNotEmpty()) {
                                 hexStringToByteArray(tag.rawNdefHex)
-                            } else byteArrayOf()
+                            } else {
+                                NdefPayloadBuilder.buildNdefMessageFromRecords(parsedRecords).toByteArray()
+                            }
                             cloneViewModel.stageDirectPayload(tag.title, parsedRecords, rawBytes)
                             cloneViewModel.emulateStagedTag()
                             onNavigateToEmulate()

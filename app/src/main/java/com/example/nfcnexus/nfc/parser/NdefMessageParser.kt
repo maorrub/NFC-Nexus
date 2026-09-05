@@ -26,14 +26,34 @@ object NdefMessageParser {
                         TextRecordParser.parse(record)
                     }
                     Arrays.equals(type, NdefRecord.RTD_URI) -> {
-                        UriRecordParser.parse(record)
+                        val uriRecord = UriRecordParser.parse(record)
+                        val lowerUri = uriRecord.uri.lowercase()
+                        if (lowerUri.startsWith("data:image/") ||
+                            lowerUri.endsWith(".jpg") || lowerUri.endsWith(".jpeg") ||
+                            lowerUri.endsWith(".png") || lowerUri.endsWith(".webp") ||
+                            lowerUri.endsWith(".gif") || lowerUri.contains("/image/")
+                        ) {
+                            val base64Thumb = if (lowerUri.startsWith("data:image/")) {
+                                uriRecord.uri.substringAfter("base64,")
+                            } else null
+                            ParsedRecord.Image(
+                                uri = uriRecord.uri,
+                                title = uriRecord.title.ifEmpty { "Photo / Image" },
+                                mimeType = if (lowerUri.contains("png")) "image/png" else "image/jpeg",
+                                base64Thumbnail = base64Thumb,
+                                byteSize = payload.size,
+                                rawBytesHex = rawHex
+                            )
+                        } else {
+                            uriRecord
+                        }
                     }
                     Arrays.equals(type, NdefRecord.RTD_SMART_POSTER) -> {
                         // Smart poster often contains an inner NDEF message
                         try {
                             val innerMsg = NdefMessage(payload)
                             val innerParsed = parse(innerMsg)
-                            innerParsed.firstOrNull { it is ParsedRecord.Uri }
+                            innerParsed.firstOrNull { it is ParsedRecord.Uri || it is ParsedRecord.Image }
                                 ?: innerParsed.firstOrNull()
                                 ?: ParsedRecord.Unknown("TNF_WELL_KNOWN (Smart Poster)", type.joinToString(""){ "%02X".format(it.toInt() and 0xFF) }, rawHex, rawHex)
                         } catch (e: Exception) {
@@ -49,6 +69,18 @@ object NdefMessageParser {
             NdefRecord.TNF_MIME_MEDIA -> {
                 val mimeType = String(type, StandardCharsets.US_ASCII).lowercase()
                 when {
+                    mimeType.startsWith("image/") -> {
+                        val base64 = android.util.Base64.encodeToString(payload, android.util.Base64.NO_WRAP)
+                        val dataUri = "data:$mimeType;base64,$base64"
+                        ParsedRecord.Image(
+                            uri = dataUri,
+                            title = "Embedded Photo (${payload.size}B)",
+                            mimeType = mimeType,
+                            base64Thumbnail = base64,
+                            byteSize = payload.size,
+                            rawBytesHex = rawHex
+                        )
+                    }
                     mimeType == "application/vnd.wfa.wsc" -> {
                         WifiRecordParser.parse(record)
                     }

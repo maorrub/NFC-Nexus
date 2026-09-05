@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -54,6 +55,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.nfcnexus.data.model.ParsedRecord
 import com.example.nfcnexus.theme.DarkCard
 import com.example.nfcnexus.theme.DarkCardBorder
@@ -109,6 +116,7 @@ fun RecordCardView(
             when (record) {
                 is ParsedRecord.Text -> TextRecordContent(record, context)
                 is ParsedRecord.Uri -> UriRecordContent(record, context)
+                is ParsedRecord.Image -> ImageRecordContent(record, context)
                 is ParsedRecord.Wifi -> WifiRecordContent(record, context)
                 is ParsedRecord.VCard -> VCardRecordContent(record, context)
                 is ParsedRecord.Mime -> MimeRecordContent(record, context)
@@ -124,6 +132,7 @@ fun RecordTypeBadge(record: ParsedRecord) {
     val (icon, color) = when (record) {
         is ParsedRecord.Text -> Icons.AutoMirrored.Filled.Notes to NfcCyan
         is ParsedRecord.Uri -> Icons.Default.Link to NfcPurple
+        is ParsedRecord.Image -> Icons.Default.Image to Color(0xFF29B6F6)
         is ParsedRecord.Wifi -> Icons.Default.Wifi to NfcGreen
         is ParsedRecord.VCard -> Icons.Default.Person to Color(0xFFFF80AB)
         is ParsedRecord.Mime -> Icons.Default.Code to Color(0xFFFFD54F)
@@ -379,6 +388,98 @@ private fun UnknownRecordContent(record: ParsedRecord.Unknown, context: Context)
                 color = DarkTextSecondary
             )
         )
+    }
+}
+
+@Composable
+private fun ImageRecordContent(record: ParsedRecord.Image, context: Context) {
+    val bitmap = remember(record.base64Thumbnail) {
+        record.base64Thumbnail?.let { b64 ->
+            try {
+                val bytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+                android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (!record.title.isNullOrBlank()) {
+            Text(
+                text = record.title,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = DarkTextPrimary
+                )
+            )
+        }
+
+        if (bitmap != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.Black.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.foundation.Image(
+                    bitmap = bitmap,
+                    contentDescription = record.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+
+        if (record.uri.isNotEmpty()) {
+            Text(
+                text = record.uri,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = NfcCyan,
+                    fontFamily = FontFamily.Monospace
+                ),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "MIME: ${record.mimeType}${if (record.byteSize > 0) " (${record.byteSize} bytes)" else ""}",
+                style = MaterialTheme.typography.bodySmall.copy(color = DarkTextSecondary)
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (record.uri.isNotEmpty()) {
+                    IconButton(
+                        onClick = { copyToClipboard(context, "Photo URL", record.uri) },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy URL", tint = NfcCyan, modifier = Modifier.size(18.dp))
+                    }
+                    FilledTonalButton(
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(record.uri))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Could not open image link", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Open Photo")
+                    }
+                }
+            }
+        }
     }
 }
 

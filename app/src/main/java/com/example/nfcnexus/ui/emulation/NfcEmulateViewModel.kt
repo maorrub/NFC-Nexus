@@ -35,10 +35,16 @@ class NfcEmulateViewModel(
         val records = tagRepository.parseRecords(tag)
         val firstRecord = records.firstOrNull()
 
-        val ndefBytes = if (tag.rawNdefHex.isNotEmpty()) {
+        val rawNdef = if (tag.rawNdefHex.isNotEmpty()) {
             hexStringToByteArray(tag.rawNdefHex)
         } else {
-            buildNdefMessageFromRecords(records).toByteArray()
+            byteArrayOf()
+        }
+
+        val ndefBytes = if (rawNdef.isNotEmpty()) {
+            rawNdef
+        } else {
+            com.example.nfcnexus.nfc.builder.NdefPayloadBuilder.buildNdefMessageFromRecords(records).toByteArray()
         }
 
         if (firstRecord != null && ndefBytes.isNotEmpty()) {
@@ -55,37 +61,7 @@ class NfcEmulateViewModel(
     }
 
     private fun buildNdefMessageFromRecords(records: List<com.example.nfcnexus.data.model.ParsedRecord>): android.nfc.NdefMessage {
-        val ndefRecords = records.map { record ->
-            when (record) {
-                is com.example.nfcnexus.data.model.ParsedRecord.Text -> com.example.nfcnexus.nfc.builder.NdefPayloadBuilder.createTextRecord(record.text, record.languageCode)
-                is com.example.nfcnexus.data.model.ParsedRecord.Uri -> com.example.nfcnexus.nfc.builder.NdefPayloadBuilder.createUriRecord(record.uri)
-                is com.example.nfcnexus.data.model.ParsedRecord.Wifi -> com.example.nfcnexus.nfc.builder.NdefPayloadBuilder.createWifiRecord(
-                    ssid = record.ssid,
-                    password = record.networkKey,
-                    authType = if (record.authType.contains("WPA3")) com.example.nfcnexus.nfc.builder.WifiTlvEncoder.AuthType.WPA3_PERSONAL else com.example.nfcnexus.nfc.builder.WifiTlvEncoder.AuthType.WPA2_PERSONAL
-                )
-                is com.example.nfcnexus.data.model.ParsedRecord.VCard -> com.example.nfcnexus.nfc.builder.NdefPayloadBuilder.createVCardRecord(
-                    fullName = record.formattedName,
-                    organization = record.organization,
-                    title = record.title,
-                    phone = record.phoneNumbers.firstOrNull() ?: "",
-                    email = record.emails.firstOrNull() ?: "",
-                    url = record.urls.firstOrNull() ?: "",
-                    note = record.note,
-                    address = record.address
-                )
-                is com.example.nfcnexus.data.model.ParsedRecord.Mime -> com.example.nfcnexus.nfc.builder.NdefPayloadBuilder.createMimeRecord(
-                    mimeType = record.mimeType,
-                    data = record.contentString?.toByteArray() ?: hexStringToByteArray(record.payloadHex)
-                )
-                is com.example.nfcnexus.data.model.ParsedRecord.Aar -> com.example.nfcnexus.nfc.builder.NdefPayloadBuilder.createAarRecord(record.packageName)
-                is com.example.nfcnexus.data.model.ParsedRecord.Unknown -> com.example.nfcnexus.nfc.builder.NdefPayloadBuilder.createTextRecord("Unknown Record")
-            }
-        }
-        if (ndefRecords.isEmpty()) {
-            return android.nfc.NdefMessage(android.nfc.NdefRecord(android.nfc.NdefRecord.TNF_EMPTY, null, null, null))
-        }
-        return android.nfc.NdefMessage(ndefRecords.toTypedArray())
+        return com.example.nfcnexus.nfc.builder.NdefPayloadBuilder.buildNdefMessageFromRecords(records)
     }
 
     private fun hexStringToByteArray(s: String): ByteArray {

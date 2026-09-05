@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -25,11 +29,14 @@ import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
@@ -63,10 +70,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nfcnexus.nfc.builder.WifiTlvEncoder
@@ -142,6 +153,7 @@ fun NfcWriterScreen(
                             val icon = when (type) {
                                 WritePayloadType.TEXT -> Icons.AutoMirrored.Filled.Notes
                                 WritePayloadType.URL -> Icons.Default.Link
+                                WritePayloadType.PHOTO -> Icons.Default.Image
                                 WritePayloadType.WIFI -> Icons.Default.Wifi
                                 WritePayloadType.VCARD -> Icons.Default.Person
                                 WritePayloadType.MIME -> Icons.Default.Code
@@ -215,6 +227,10 @@ fun NfcWriterScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = customTextFieldColors()
                             )
+                        }
+
+                        WritePayloadType.PHOTO -> {
+                            PhotoFormEditor(state = state, viewModel = viewModel)
                         }
 
                         WritePayloadType.WIFI -> {
@@ -558,3 +574,230 @@ private fun customTextFieldColors() = OutlinedTextFieldDefaults.colors(
     unfocusedTextColor = DarkTextPrimary,
     cursorColor = NfcCyan
 )
+
+@Composable
+private fun PhotoFormEditor(
+    state: WriterUiState,
+    viewModel: NfcWriterViewModel
+) {
+    val context = LocalContext.current
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let { viewModel.compressAndSetGalleryImage(context, it) }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Mode Selector: Web URL (Universal Pop-Up) vs Gallery Embed
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            PhotoMode.entries.forEach { mode ->
+                val isSelected = state.photoMode == mode
+                Surface(
+                    color = if (isSelected) NfcCyan.copy(alpha = 0.2f) else DarkSurface,
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (isSelected) NfcCyan else DarkCardBorder
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { viewModel.updatePhotoMode(mode) }
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (mode == PhotoMode.WEB_URL) "🌐 Direct Link (Tap-to-Pop)" else "🖼️ Gallery (Embedded)",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) NfcCyan else DarkTextSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        when (state.photoMode) {
+            PhotoMode.WEB_URL -> {
+                OutlinedTextField(
+                    value = state.photoUrl,
+                    onValueChange = { viewModel.updatePhotoUrl(it, state.photoTitle) },
+                    label = { Text("Direct Photo URL (https://.../image.jpg)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = customTextFieldColors()
+                )
+
+                OutlinedTextField(
+                    value = state.photoTitle,
+                    onValueChange = { viewModel.updatePhotoUrl(state.photoUrl, it) },
+                    label = { Text("Photo Title / Caption") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = customTextFieldColors()
+                )
+
+                // Quick presets
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = {
+                            viewModel.updatePhotoUrl(
+                                "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=600",
+                                "Artwork Photo"
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Art Sample", fontSize = 12.sp)
+                    }
+                    FilledTonalButton(
+                        onClick = {
+                            viewModel.updatePhotoUrl(
+                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600",
+                                "Portrait Photo"
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Portrait Sample", fontSize = 12.sp)
+                    }
+                }
+
+                // Universal Pop-up explanation badge
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, NfcCyan.copy(alpha = 0.3f)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Image,
+                            contentDescription = null,
+                            tint = NfcCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Universal Tap-to-Pop: When any phone (iPhone or Android) touches this tag or emulating phone, the image immediately pops up in their default browser — no special app required.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = DarkTextSecondary,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp
+                            )
+                        )
+                    }
+                }
+            }
+
+            PhotoMode.GALLERY_EMBED -> {
+                val bitmap = remember(state.photoBytes) {
+                    state.photoBytes?.let { bytes ->
+                        try {
+                            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                }
+
+                if (bitmap != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            bitmap = bitmap,
+                            contentDescription = state.photoTitle,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Size: ${state.photoByteSize} bytes",
+                            style = MaterialTheme.typography.bodySmall.copy(color = NfcGreen)
+                        )
+                        TextButton(
+                            onClick = {
+                                viewModel.setGalleryImage(byteArrayOf(), "image/jpeg", "")
+                            }
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = NfcCoral, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Clear", color = NfcCoral, fontSize = 12.sp)
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = state.photoTitle,
+                        onValueChange = {
+                            state.photoBytes?.let { bytes ->
+                                viewModel.setGalleryImage(bytes, state.photoMimeType, it)
+                            }
+                        },
+                        label = { Text("Photo Title / Label") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = customTextFieldColors()
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        photoPickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (bitmap == null) NfcCyan else DarkSurface,
+                        contentColor = if (bitmap == null) Color.Black else DarkTextPrimary
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.PhotoCamera,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (bitmap == null) "Pick Photo from Gallery" else "Choose Different Photo")
+                }
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, DarkCardBorder),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "Embedded Mode: Image is auto-compressed to fit standard NFC tags (NTAG215/216) and Host Card Emulation. Readers with NFC Nexus or MIME image support will decode and render the photo directly.",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = DarkTextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp
+                        ),
+                        modifier = Modifier.padding(10.dp)
+                    )
+                }
+            }
+        }
+    }
+}

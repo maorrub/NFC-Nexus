@@ -20,10 +20,16 @@ import kotlinx.coroutines.launch
 enum class WritePayloadType(val label: String) {
     TEXT("Text Note"),
     URL("Web URL / Link"),
+    PHOTO("Photo / Image"),
     WIFI("Wi-Fi Network"),
     VCARD("Business Card (vCard)"),
     MIME("Custom MIME"),
     AAR("App Launcher (AAR)")
+}
+
+enum class PhotoMode(val label: String) {
+    WEB_URL("Direct Photo Link (All Phones)"),
+    GALLERY_EMBED("Gallery Photo (Embedded)")
 }
 
 data class WriterUiState(
@@ -33,6 +39,14 @@ data class WriterUiState(
     val textLanguage: String = "en",
     // URL fields
     val urlContent: String = "https://github.com/developer/portfolio",
+    // Photo fields
+    val photoMode: PhotoMode = PhotoMode.WEB_URL,
+    val photoUrl: String = "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=600&auto=format&fit=crop",
+    val photoTitle: String = "My Photo",
+    val photoBytes: ByteArray? = null,
+    val photoBase64: String? = null,
+    val photoMimeType: String = "image/jpeg",
+    val photoByteSize: Int = 0,
     // Wi-Fi fields
     val wifiSsid: String = "Nexus-Network",
     val wifiPassword: String = "NexusPass2026!",
@@ -133,6 +147,58 @@ class NfcWriterViewModel(
         _uiState.update { it.copy(urlContent = url) }
     }
 
+    fun updatePhotoMode(mode: PhotoMode) {
+        _uiState.update { it.copy(photoMode = mode) }
+    }
+
+    fun updatePhotoUrl(url: String, title: String = _uiState.value.photoTitle) {
+        _uiState.update { it.copy(photoUrl = url, photoTitle = title) }
+    }
+
+    fun setGalleryImage(bytes: ByteArray, mimeType: String = "image/jpeg", title: String = "Gallery Photo") {
+        val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        _uiState.update {
+            it.copy(
+                photoBytes = bytes,
+                photoBase64 = base64,
+                photoMimeType = mimeType,
+                photoTitle = title,
+                photoByteSize = bytes.size
+            )
+        }
+    }
+
+    fun compressAndSetGalleryImage(context: android.content.Context, uri: android.net.Uri, maxTargetBytes: Int = 3500) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri) ?: return@launch
+                val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+                inputStream.close()
+                if (originalBitmap == null) return@launch
+
+                // Downsample to thumbnail (max dimension 120px) to fit tag budget
+                val maxDim = 120
+                val ratio = minOf(1.0f, maxDim.toFloat() / maxOf(originalBitmap.width, originalBitmap.height))
+                val targetW = maxOf(1, (originalBitmap.width * ratio).toInt())
+                val targetH = maxOf(1, (originalBitmap.height * ratio).toInt())
+                val scaled = android.graphics.Bitmap.createScaledBitmap(originalBitmap, targetW, targetH, true)
+
+                var quality = 80
+                var stream = java.io.ByteArrayOutputStream()
+                scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, stream)
+                while (stream.size() > maxTargetBytes && quality > 20) {
+                    quality -= 15
+                    stream = java.io.ByteArrayOutputStream()
+                    scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, stream)
+                }
+                val compressedBytes = stream.toByteArray()
+                setGalleryImage(compressedBytes, "image/jpeg", "Gallery Photo (${targetW}x${targetH})")
+            } catch (e: Exception) {
+                _uiState.update { it.copy(statusMessage = "Failed to process photo: ${e.localizedMessage}") }
+            }
+        }
+    }
+
     fun updateWifi(ssid: String, pass: String, auth: WifiTlvEncoder.AuthType) {
         _uiState.update { it.copy(wifiSsid = ssid, wifiPassword = pass, wifiAuthType = auth) }
     }
@@ -231,6 +297,17 @@ class NfcWriterViewModel(
         val record = when (s.selectedType) {
             WritePayloadType.TEXT -> NdefPayloadBuilder.createTextRecord(s.textContent, s.textLanguage)
             WritePayloadType.URL -> NdefPayloadBuilder.createUriRecord(s.urlContent)
+            WritePayloadType.PHOTO -> {
+                if (s.photoMode == PhotoMode.GALLERY_EMBED && s.photoBytes != null && s.photoBytes.isNotEmpty()) {
+                    NdefPayloadBuilder.createImageRecord(
+                        uriString = "data:${s.photoMimeType};base64,${s.photoBase64}",
+                        rawImageBytes = s.photoBytes,
+                        mimeType = s.photoMimeType
+                    )
+                } else {
+                    NdefPayloadBuilder.createUriRecord(s.photoUrl)
+                }
+            }
             WritePayloadType.WIFI -> NdefPayloadBuilder.createWifiRecord(s.wifiSsid, s.wifiPassword, s.wifiAuthType)
             WritePayloadType.VCARD -> NdefPayloadBuilder.createVCardRecord(
                 fullName = s.vcardName,
@@ -253,6 +330,27 @@ class NfcWriterViewModel(
         return when (s.selectedType) {
             WritePayloadType.TEXT -> ParsedRecord.Text(s.textContent, s.textLanguage, "UTF-8", "")
             WritePayloadType.URL -> ParsedRecord.Uri(s.urlContent, s.urlContent, "", "")
+            WritePayloadType.PHOTO -> {
+                if (s.photoMode == PhotoMode.GALLERY_EMBED && s.photoBytes != null && s.photoBytes.isNotEmpty()) {
+                    ParsedRecord.Image(
+                        uri = "data:${s.photoMimeType};base64,${s.photoBase64}",
+                        title = s.photoTitle,
+                        mimeType = s.photoMimeType,
+                        base64Thumbnail = s.photoBase64,
+                        byteSize = s.photoByteSize,
+                        rawBytesHex = s.photoBytes.joinToString("") { "%02X".format(it.toInt() and 0xFF) }
+                    )
+                } else {
+                    ParsedRecord.Image(
+                        uri = s.photoUrl,
+                        title = s.photoTitle,
+                        mimeType = "image/jpeg",
+                        base64Thumbnail = null,
+                        byteSize = s.photoUrl.length,
+                        rawBytesHex = ""
+                    )
+                }
+            }
             WritePayloadType.WIFI -> ParsedRecord.Wifi(s.wifiSsid, s.wifiAuthType.name, "AES", s.wifiPassword, "", "")
             WritePayloadType.VCARD -> ParsedRecord.VCard(
                 formattedName = s.vcardName,

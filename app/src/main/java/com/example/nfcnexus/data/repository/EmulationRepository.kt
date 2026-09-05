@@ -85,6 +85,7 @@ object EmulationRepository {
     fun setEmulatedCardFromRecord(record: ParsedRecord, customTitle: String? = null, ndefBytes: ByteArray) {
         val (title, subtitle, type) = when (record) {
             is ParsedRecord.Uri -> Triple(customTitle ?: "Web Link", record.uri, "URI / Web Link")
+            is ParsedRecord.Image -> Triple(customTitle ?: "Photo Card", record.title.ifEmpty { record.uri.take(35) }, "Photo / Image")
             is ParsedRecord.Text -> Triple(customTitle ?: "Text Message", record.text, "Plain Text")
             is ParsedRecord.Wifi -> Triple(customTitle ?: "Wi-Fi Access", "SSID: ${record.ssid}", "Wi-Fi Config")
             is ParsedRecord.VCard -> Triple(customTitle ?: "Contact Card", record.formattedName, "vCard Contact")
