@@ -73,14 +73,14 @@ class ApduProtocolHandler {
 
         // Maximum transceive chunk size: 127 bytes ensures total response (data + 2 SW bytes)
         // never exceeds 256 bytes, preventing ISO-DEP buffer overflow on external readers.
-        const val MAX_READ_CHUNK_SIZE = 127
+        const val MAX_READ_CHUNK_SIZE = 256
 
         // Standard Capability Container (CC) 15-byte file for Type 4 Tag v2.0
         val CC_FILE = byteArrayOf(
             0x00.toByte(), 0x0F.toByte(), // CCLEN: 15 bytes
             0x20.toByte(),               // Mapping Version 2.0
-            0x00.toByte(), 0x7F.toByte(), // MLe: Max Read Length (127 bytes, prevents frame overflow)
-            0x00.toByte(), 0x7F.toByte(), // MLc: Max Write Length (127 bytes)
+            0x00.toByte(), 0xFF.toByte(), // MLe: Max Read Length (255 bytes)
+            0x00.toByte(), 0xFF.toByte(), // MLc: Max Write Length (255 bytes)
             0x04.toByte(), 0x06.toByte(), // NDEF File Control TLV: T=04, L=06
             0xE1.toByte(), 0x04.toByte(), // NDEF File ID (E1 04)
             0x20.toByte(), 0x00.toByte(), // Max NDEF File Size (8192 bytes / 8KB)
@@ -137,7 +137,7 @@ class ApduProtocolHandler {
 
         // SELECT File by ID (P1 = 0x00: Select MF, DF, or EF; P1 = 0x02: Select EF under current DF)
         // Standard readers (including iOS CoreNFC, Proxmark, ACR122U) often use P1 = 0x02 or 0x00
-        if (apdu.size >= 7) {
+        if ((p1 == 0x00 || p1 == 0x02) && apdu.size >= 7) {
             val fileId = apdu.copyOfRange(5, 7)
             if (Arrays.equals(fileId, CC_FILE_ID)) {
                 selectedFile = SelectedFile.CC_FILE
