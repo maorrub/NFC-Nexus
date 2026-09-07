@@ -693,19 +693,8 @@ private fun PhotoFormEditor(
                     FilledTonalButton(
                         onClick = {
                             viewModel.updatePhotoUrl(
-                                "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1600&q=85",
-                                "Artwork Photo"
-                            )
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Art HD", fontSize = 12.sp)
-                    }
-                    FilledTonalButton(
-                        onClick = {
-                            viewModel.updatePhotoUrl(
-                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=85",
-                                "Portrait Photo"
+                                "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1920",
+                                "Portrait Photo (Full Screen)"
                             )
                         },
                         modifier = Modifier.weight(1f)
@@ -715,8 +704,19 @@ private fun PhotoFormEditor(
                     FilledTonalButton(
                         onClick = {
                             viewModel.updatePhotoUrl(
-                                "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=85",
-                                "Nature Photo"
+                                "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?q=80&w=1920",
+                                "Artwork Photo (Full Screen)"
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Art HD", fontSize = 12.sp)
+                    }
+                    FilledTonalButton(
+                        onClick = {
+                            viewModel.updatePhotoUrl(
+                                "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1920",
+                                "Nature Photo (Full Screen)"
                             )
                         },
                         modifier = Modifier.weight(1f)

@@ -76,12 +76,12 @@ abstract class NfcDatabase : RoomDatabase() {
                     memorySize = 2048
                 ),
                 TagEntity(
-                    title = "Artwork Showcase Photo",
+                    title = "Portrait Photo (Full Screen)",
                     tagUid = "TEMPLATE_PHOTO",
                     tagType = "NFC Forum Type 2",
                     category = "TEMPLATE",
                     isFavorite = true,
-                    recordsJson = """[{"type":"com.example.nfcnexus.data.model.ParsedRecord.Image","uri":"https://maorrub.github.io/NFC-Nexus/?img=https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format%26fit=crop%26w=1600%26q=85","title":"Artwork Showcase","mimeType":"image/jpeg","base64Thumbnail":null,"byteSize":135,"rawBytesHex":""}]""",
+                    recordsJson = """[{"type":"com.example.nfcnexus.data.model.ParsedRecord.Image","uri":"https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1920","title":"Portrait Photo (Full Screen)","mimeType":"image/jpeg","base64Thumbnail":null,"byteSize":72,"rawBytesHex":""}]""",
                     techListJson = """["android.nfc.tech.Ndef","android.nfc.tech.NfcA"]""",
                     memorySize = 504
                 )

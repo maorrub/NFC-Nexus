@@ -41,9 +41,9 @@ data class WriterUiState(
     val urlContent: String = "https://github.com/developer/portfolio",
     // Photo fields
     val photoMode: PhotoMode = PhotoMode.WEB_URL,
-    val photoUrl: String = "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1600&q=85",
-    val photoTitle: String = "My Photo",
-    val photoFullScreenViewer: Boolean = true,
+    val photoUrl: String = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1920",
+    val photoTitle: String = "Portrait Photo (Full Screen)",
+    val photoFullScreenViewer: Boolean = false,
     val photoBytes: ByteArray? = null,
     val photoBase64: String? = null,
     val photoMimeType: String = "image/jpeg",
@@ -160,10 +160,15 @@ class NfcWriterViewModel(
         val s = _uiState.value
         val raw = s.photoUrl.trim()
         if (raw.isEmpty()) return ""
-        return if (s.photoFullScreenViewer && !raw.startsWith("https://maorrub.github.io/NFC-Nexus/")) {
-            "https://maorrub.github.io/NFC-Nexus/?img=" + java.net.URLEncoder.encode(raw, "UTF-8")
+        val normalized = if (!raw.contains("://")) "https://$raw" else raw
+        return if (s.photoFullScreenViewer) {
+            if (normalized.contains("maorrub.github.io/NFC-Nexus")) {
+                normalized
+            } else {
+                "https://maorrub.github.io/NFC-Nexus/?img=" + java.net.URLEncoder.encode(normalized, "UTF-8")
+            }
         } else {
-            raw
+            normalized
         }
     }
 
@@ -184,7 +189,7 @@ class NfcWriterViewModel(
         }
     }
 
-    fun compressAndSetGalleryImage(context: android.content.Context, uri: android.net.Uri, maxTargetBytes: Int = 6500) {
+    fun compressAndSetGalleryImage(context: android.content.Context, uri: android.net.Uri, maxTargetBytes: Int = 3500) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val inputStream = context.contentResolver.openInputStream(uri) ?: return@launch
@@ -192,17 +197,17 @@ class NfcWriterViewModel(
                 inputStream.close()
                 if (originalBitmap == null) return@launch
 
-                // Downsample to high-res thumbnail (max dimension 360px) to fit 8KB HCE capacity
-                val maxDim = 360
+                // Downsample to clean thumbnail (max dimension 240px)
+                val maxDim = 240
                 val ratio = minOf(1.0f, maxDim.toFloat() / maxOf(originalBitmap.width, originalBitmap.height))
                 val targetW = maxOf(1, (originalBitmap.width * ratio).toInt())
                 val targetH = maxOf(1, (originalBitmap.height * ratio).toInt())
                 val scaled = android.graphics.Bitmap.createScaledBitmap(originalBitmap, targetW, targetH, true)
 
-                var quality = 85
+                var quality = 80
                 var stream = java.io.ByteArrayOutputStream()
                 scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, stream)
-                while (stream.size() > maxTargetBytes && quality > 25) {
+                while (stream.size() > maxTargetBytes && quality > 15) {
                     quality -= 10
                     stream = java.io.ByteArrayOutputStream()
                     scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, stream)
