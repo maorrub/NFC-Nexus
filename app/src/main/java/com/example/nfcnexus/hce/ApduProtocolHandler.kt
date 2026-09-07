@@ -227,25 +227,13 @@ class ApduProtocolHandler {
         val data = if (lc > 0) apdu.copyOfRange(5, 5 + lc) else byteArrayOf()
 
         if (selectedFile == SelectedFile.NDEF_FILE) {
-            // Case 1: Writing NLEN = 0 (reset/init write sequence)
+            // Case 1: Resetting NLEN to 0
             if (offset == 0 && lc == 2 && data[0] == 0.toByte() && data[1] == 0.toByte()) {
                 pendingNdefBuffer = ByteArray(0)
                 return ApduResponse(SW_SUCCESS, "UPDATE BINARY (RESET)", "90 00", true, "NDEF message reset (NLEN=0)")
             }
 
-            // Case 2: Writing NDEF payload starting at offset 2
-            if (offset >= 2 && lc > 0) {
-                val current = pendingNdefBuffer ?: ByteArray(0)
-                val newBufferOffset = offset - 2
-                val requiredSize = maxOf(current.size, newBufferOffset + lc)
-                val newBuffer = ByteArray(requiredSize)
-                System.arraycopy(current, 0, newBuffer, 0, current.size)
-                System.arraycopy(data, 0, newBuffer, newBufferOffset, lc)
-                pendingNdefBuffer = newBuffer
-                return ApduResponse(SW_SUCCESS, "UPDATE BINARY (DATA)", "90 00", true, "Wrote $lc bytes at offset $offset")
-            }
-
-            // Case 3: Finalizing write with final NLEN
+            // Case 2: Finalizing write with non-zero NLEN at offset 0
             if (offset == 0 && lc == 2) {
                 val finalLength = ((data[0].toInt() and 0xFF) shl 8) or (data[1].toInt() and 0xFF)
                 val committed = pendingNdefBuffer?.take(finalLength)?.toByteArray() ?: ByteArray(0)
@@ -258,6 +246,25 @@ class ApduProtocolHandler {
                     description = "Committed $finalLength bytes NDEF message",
                     updatedNdefBytes = committed
                 )
+            }
+
+            // Case 3: Writing data (either starting at offset 2, or mixed with NLEN)
+            if (offset + lc > 2) {
+                val current = pendingNdefBuffer ?: ByteArray(0)
+                
+                // Determine how much data belongs to the actual payload (skipping NLEN bytes if present)
+                val payloadDataStartInApdu = if (offset < 2) 2 - offset else 0
+                val dataToAppend = data.copyOfRange(payloadDataStartInApdu, data.size)
+                
+                val newBufferOffset = if (offset < 2) 0 else offset - 2
+                val requiredSize = maxOf(current.size, newBufferOffset + dataToAppend.size)
+                
+                val newBuffer = ByteArray(requiredSize)
+                System.arraycopy(current, 0, newBuffer, 0, current.size)
+                System.arraycopy(dataToAppend, 0, newBuffer, newBufferOffset, dataToAppend.size)
+                
+                pendingNdefBuffer = newBuffer
+                return ApduResponse(SW_SUCCESS, "UPDATE BINARY (DATA)", "90 00", true, "Wrote ${dataToAppend.size} bytes of payload")
             }
 
             return ApduResponse(SW_SUCCESS, "UPDATE BINARY", "90 00", true, "Processed update at offset $offset")
